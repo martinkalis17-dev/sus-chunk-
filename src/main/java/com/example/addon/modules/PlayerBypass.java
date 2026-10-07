@@ -1,4 +1,4 @@
-package com.example.addon;
+package com.example.addon.modules;
 
 import com.example.addon.AddonTemplate;
 import meteordevelopment.meteorclient.events.render.Render3DEvent;
@@ -10,8 +10,8 @@ import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.player.ChatUtils;
 import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.math.Box;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -62,7 +62,7 @@ public class PlayerBypass extends Module {
         .name("couleur-lignes").defaultValue(new SettingColor(255, 170, 0, 255)).build());
 
     private final Set<UUID> alerted = new HashSet<>();
-    private final List<PlayerEntity> detected = new ArrayList<>();
+    private final List<Player> detected = new ArrayList<>();
 
     public PlayerBypass() {
         super(AddonTemplate.CATEGORY, "player-bypass",
@@ -77,20 +77,20 @@ public class PlayerBypass extends Module {
 
     @EventHandler
     private void onTick(TickEvent.Post event) {
-        if (mc.world == null || mc.player == null) return;
+        if (mc.level == null || mc.player == null) return;
 
         detected.clear();
         Set<UUID> stillBelow = new HashSet<>();
 
-        for (PlayerEntity p : mc.world.getPlayers()) {
+        for (Player p : mc.level.players()) {
             if (p == mc.player) continue;
             if (ignoreFriends.get() && Friends.get().isFriend(p)) continue;
             if (p.getY() >= belowY.get()) continue;
 
             detected.add(p);
-            stillBelow.add(p.getUuid());
+            stillBelow.add(p.getUUID());
 
-            if (alerted.add(p.getUuid()) && chat.get()) {
+            if (alerted.add(p.getUUID()) && chat.get()) {
                 ChatUtils.warning("%s est sous la couche %d (Y=%d)",
                     p.getName().getString(), belowY.get(), p.getBlockY());
             }
@@ -103,8 +103,8 @@ public class PlayerBypass extends Module {
     @EventHandler
     private void onRender(Render3DEvent event) {
         if (!render.get()) return;
-        for (PlayerEntity p : detected) {
-            Box b = p.getBoundingBox();
+        for (Player p : detected) {
+            AABB b = p.getBoundingBox();
             event.renderer.box(b.minX, b.minY, b.minZ, b.maxX, b.maxY, b.maxZ,
                 sideColor.get(), lineColor.get(), shapeMode.get(), 0);
         }
