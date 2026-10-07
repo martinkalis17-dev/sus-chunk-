@@ -1,5 +1,5 @@
-Modules.get().add(new com.example.addon.modules.SusChunkFinder());
-Modules.get().add(new com.example.addon.modules.PlayerBypass());package com.example.addon;
+package com.example.addon;
+
 
 import com.example.addon.commands.CommandExample;
 import com.example.addon.hud.HudExample;
