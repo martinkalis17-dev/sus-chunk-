@@ -1,4 +1,5 @@
-package com.example.addon;
+Modules.get().add(new com.example.addon.modules.SusChunkFinder());
+Modules.get().add(new com.example.addon.modules.PlayerBypass());package com.example.addon;
 
 import com.example.addon.commands.CommandExample;
 import com.example.addon.hud.HudExample;
@@ -24,6 +25,8 @@ public class AddonTemplate extends MeteorAddon {
 
         // Modules
         Modules.get().add(new ModuleExample());
+        Modules.get().add(new com.example.addon.modules.SusChunkFinder());
+Modules.get().add(new com.example.addon.modules.PlayerBypass());
 
         // Commands
         Commands.add(new CommandExample());
