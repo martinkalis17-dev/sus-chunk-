@@ -9,12 +9,16 @@ import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.player.ChatUtils;
 import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.block.entity.*;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.world.chunk.Chunk;
-import net.minecraft.world.chunk.ChunkStatus;
-import net.minecraft.world.chunk.WorldChunk;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.entity.BarrelBlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.ChestBlockEntity;
+import net.minecraft.world.level.block.entity.DispenserBlockEntity;
+import net.minecraft.world.level.block.entity.EnderChestBlockEntity;
+import net.minecraft.world.level.block.entity.FurnaceBlockEntity;
+import net.minecraft.world.level.block.entity.HopperBlockEntity;
+import net.minecraft.world.level.block.entity.ShulkerBoxBlockEntity;
+import net.minecraft.world.level.chunk.LevelChunk;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -61,10 +65,10 @@ public class SusChunkFinder extends Module {
     private final Setting<SettingColor> lineColor = sgRender.add(new ColorSetting.Builder()
         .name("couleur-lignes").defaultValue(new SettingColor(255, 80, 80, 255)).build());
 
-    private record Sus(int count, int minY, int maxY) {}
+    private record Sus(int cx, int cz, int count, int minY, int maxY) {}
 
-    private final Map<ChunkPos, Sus> flagged = new HashMap<>();
-    private final Set<ChunkPos> notified = new HashSet<>();
+    private final Map<Long, Sus> flagged = new HashMap<>();
+    private final Set<Long> notified = new HashSet<>();
     private int timer = 0;
 
     public SusChunkFinder() {
@@ -79,21 +83,25 @@ public class SusChunkFinder extends Module {
         timer = 0;
     }
 
+    private static long key(int cx, int cz) {
+        return ((long) cx << 32) | (cz & 0xffffffffL);
+    }
+
     @EventHandler
     private void onTick(TickEvent.Post event) {
-        if (mc.world == null || mc.player == null) return;
+        if (mc.level == null || mc.player == null) return;
         if (++timer < interval.get()) return;
         timer = 0;
 
         flagged.clear();
-        int pcx = mc.player.getChunkPos().x;
-        int pcz = mc.player.getChunkPos().z;
+        int pcx = mc.player.getBlockX() >> 4;
+        int pcz = mc.player.getBlockZ() >> 4;
         int r = radius.get();
 
         for (int cx = pcx - r; cx <= pcx + r; cx++) {
             for (int cz = pcz - r; cz <= pcz + r; cz++) {
-                Chunk c = mc.world.getChunk(cx, cz, ChunkStatus.FULL, false);
-                if (!(c instanceof WorldChunk chunk)) continue;
+                if (!mc.level.hasChunk(cx, cz)) continue;
+                LevelChunk chunk = mc.level.getChunk(cx, cz);
 
                 int count = 0;
                 int minY = Integer.MAX_VALUE;
@@ -107,11 +115,11 @@ public class SusChunkFinder extends Module {
                 }
 
                 if (count >= minStorage.get()) {
-                    ChunkPos cp = chunk.getPos();
-                    flagged.put(cp, new Sus(count, minY, maxY));
-                    if (chat.get() && notified.add(cp)) {
+                    long k = key(cx, cz);
+                    flagged.put(k, new Sus(cx, cz, count, minY, maxY));
+                    if (chat.get() && notified.add(k)) {
                         ChatUtils.info("Chunk suspect (%d stockages) vers x=%d z=%d",
-                            count, cp.getStartX(), cp.getStartZ());
+                            count, cx * 16, cz * 16);
                     }
                 }
             }
@@ -130,12 +138,12 @@ public class SusChunkFinder extends Module {
 
     @EventHandler
     private void onRender(Render3DEvent event) {
-        for (Map.Entry<ChunkPos, Sus> e : flagged.entrySet()) {
-            ChunkPos cp = e.getKey();
-            Sus s = e.getValue();
+        for (Sus s : flagged.values()) {
+            double x = s.cx() * 16.0;
+            double z = s.cz() * 16.0;
             event.renderer.box(
-                cp.getStartX(), s.minY(), cp.getStartZ(),
-                cp.getStartX() + 16, s.maxY() + 1, cp.getStartZ() + 16,
+                x, s.minY(), z,
+                x + 16, s.maxY() + 1, z + 16,
                 sideColor.get(), lineColor.get(), shapeMode.get(), 0);
         }
     }
